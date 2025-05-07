@@ -1,9 +1,7 @@
 # Start from slim Python image
 FROM python:3.11-slim
 
-ARG NODE_ENV=production
-ENV NODE_ENV=$NODE_ENV \
-    DB_NAME=escriptorium \
+ENV DB_NAME=escriptorium \
     DB_USER=escriptorium \
     DB_PASSWORD=escriptorium \
     DB_PORT=5432
