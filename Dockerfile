@@ -9,13 +9,14 @@ ENV NODE_ENV=$NODE_ENV \
     DB_PORT=5432
 
 # Install system dependencies
-RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-    apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \
     build-essential libpq-dev libxml2-dev libxslt-dev zlib1g-dev \
     libffi-dev libssl-dev git curl wget \
     redis postgresql postgresql-contrib \
     libleptonica-dev libvips nano default-jre default-jdk ant \
-    tesseract-ocr supervisor nodejs \
+    tesseract-ocr supervisor && \
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
+    apt-get update && apt-get install -y nodejs \
     && apt-get clean
 
 # Set JAVA_HOME
