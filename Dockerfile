@@ -46,7 +46,8 @@ RUN pip install --upgrade "pip<24.1" --no-cache-dir && \
 #RUN sed -i '1 s/^.*$/window.Vue = require("vue");/' /home/escriptorium/escriptorium/front/src/editor/mixins.js 
 RUN cd /home/escriptorium/escriptorium/front && \
     npm install
-RUN npm i @vue/compiler-sfc @popperjs/core && \
+RUN cd /home/escriptorium/escriptorium/front && \
+    npm i @vue/compiler-sfc @popperjs/core && \
     npm run production && \
     npm cache clean --force && \
     mkdir -p ../app/static/ && \
