@@ -32,7 +32,8 @@ WORKDIR /home/escriptorium
 RUN git clone https://gitlab.com/scripta/escriptorium.git && \
     cd escriptorium && \
     ##git checkout fix-build-errors && \
-    chown escriptorium:escriptorium ../escriptorium -R
+    chown escriptorium:escriptorium ../escriptorium -R && \
+    git checkout v0.13.8b-hotfixes5
 
 
 # Install Python deps
@@ -43,7 +44,6 @@ RUN pip install kraken flower gunicorn
 #RUN sed -i '1 s/^.*$/window.Vue = require("vue");/' /home/escriptorium/escriptorium/front/src/editor/mixins.js 
 RUN cd /home/escriptorium/escriptorium/front && npm install
 RUN cd /home/escriptorium/escriptorium/front && npm i @vue/compiler-sfc @popperjs/core && npm run production
-
 
 
 RUN cd /home/escriptorium/escriptorium/front && mkdir -p ../app/static/ && cp ./dist/* ../app/static/ -R && \
