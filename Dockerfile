@@ -31,10 +31,8 @@ WORKDIR /home/escriptorium
 
 RUN git clone https://gitlab.com/scripta/escriptorium.git && \
     cd escriptorium && \
-    ##git checkout fix-build-errors && \
-    chown escriptorium:escriptorium ../escriptorium -R && \
-    git checkout v0.13.8b-hotfixes5
-
+    git checkout v0.13.8b-hotfixes5 && \
+    chown escriptorium:escriptorium ../escriptorium -R
 
 # Install Python deps
 RUN pip install --upgrade pip && pip install -r ./escriptorium/app/requirements.txt
