@@ -45,7 +45,7 @@ RUN pip install --upgrade "pip<24.1" --no-cache-dir && \
 #ADD webpack.common.js /home/escriptorium/escriptorium/front/webpack.common.js
 #RUN sed -i '1 s/^.*$/window.Vue = require("vue");/' /home/escriptorium/escriptorium/front/src/editor/mixins.js 
 RUN cd /home/escriptorium/escriptorium/front && \
-    npm install
+    npm install && npm install webpack
 RUN cd /home/escriptorium/escriptorium/front && \
     npm i @vue/compiler-sfc @popperjs/core && \
     npm run production && \
