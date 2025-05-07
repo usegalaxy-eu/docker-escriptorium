@@ -20,7 +20,6 @@ RUN export JAVA_HOME=$(dirname $(dirname $(readlink -f  /usr/bin/java)))
 RUN addgroup --system uwsgi
 RUN adduser --system --no-create-home --ingroup uwsgi uwsgi
 
-
 # Create app user and working dir
 RUN useradd -ms /bin/bash escriptorium
 WORKDIR /home/escriptorium
@@ -35,8 +34,8 @@ RUN git clone https://gitlab.com/scripta/escriptorium.git && \
     chown escriptorium:escriptorium ../escriptorium -R
 
 # Install Python deps
-RUN pip install --upgrade pip && pip install -r ./escriptorium/app/requirements.txt
-RUN pip install kraken flower gunicorn
+RUN pip install --upgrade pip<24.1 --no-cache-dir && pip install --no-cache-dir -r ./escriptorium/app/requirements.txt && \
+    pip install kraken flower gunicorn --no-cache-dir
 
 #ADD webpack.common.js /home/escriptorium/escriptorium/front/webpack.common.js
 #RUN sed -i '1 s/^.*$/window.Vue = require("vue");/' /home/escriptorium/escriptorium/front/src/editor/mixins.js 
