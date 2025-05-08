@@ -38,7 +38,7 @@ RUN git clone https://gitlab.com/scripta/escriptorium.git && \
 # Install Python deps
 RUN pip install --upgrade "pip<24.1" --no-cache-dir && \
     pip install --no-cache-dir -r ./escriptorium/app/requirements.txt && \
-    pip install kraken flower gunicorn --no-cache-dir
+    pip install kraken flower gunicorn psycopg2 --no-cache-dir
 
 #ADD webpack.common.js /home/escriptorium/escriptorium/front/webpack.common.js
 #RUN sed -i '1 s/^.*$/window.Vue = require("vue");/' /home/escriptorium/escriptorium/front/src/editor/mixins.js 
@@ -62,6 +62,13 @@ EXPOSE 8000 5555
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+RUN apt-get install -y nginx
+
+# /etc/nginx/conf.d/main.conf
+#RUN rm /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/sites-available/default
+
 
 # Default command
 CMD ["docker-entrypoint.sh"]
