@@ -1,4 +1,5 @@
 <tool id="interactive_tool_escriptorium" tool_type="interactive" name="eScriptorium" version="26.10" profile="24.2">
+    <icon src="escriptorium.png" />
     <description>Segmentation and transcription of manuscripts</description>
     <requirements>
         <container type="docker">quay.io/galaxy/escriptorium:26.10</container>
@@ -9,6 +10,7 @@
     <environment_variables>
         <environment_variable name="DISABLE_AUTH">True</environment_variable>
         <environment_variable name="GALAXY_STOP_BUTTON">True</environment_variable>
+        <environment_variable name="GALAXY_FRAME_ANCESTORS">$__galaxy_url__</environment_variable>
         <environment_variable name="IMPORT_DOCUMENT_NAME">Galaxy import</environment_variable>
         <environment_variable name="USE_X_FORWARDED_HOST">True</environment_variable>
     </environment_variables>

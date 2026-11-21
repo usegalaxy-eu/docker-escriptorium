@@ -35,6 +35,17 @@ def stop_button_enabled():
     return os.getenv("GALAXY_STOP_BUTTON", "True").lower() in ("true", "1", "yes")
 
 
+def frame_ancestors():
+    """CSP frame-ancestors value for Galaxy iframe embedding, or None when
+    embedding should stay blocked (Django's default). The Galaxy IT passes
+    $__galaxy_url__ (trailing slash stripped here), so this works on any
+    Galaxy server without configuration."""
+    value = os.getenv("GALAXY_FRAME_ANCESTORS", "*").strip().rstrip("/")
+    if value.lower() in ("false", "0", "no", "off", ""):
+        return None
+    return value
+
+
 def internal_request(request):
     supplied = request.headers.get("X-Galaxy-Internal", "")
     return bool(
@@ -181,10 +192,31 @@ class GalaxyIntegrationMiddleware:
             title = "Import failed" if failed else "Preparing your document"
             refresh = "" if failed else '<meta http-equiv="refresh" content="3">'
             response = HttpResponse(
-                f'<!doctype html><html><head>{refresh}<title>{title}</title></head><body style="font:16px sans-serif;max-width:700px;margin:10vh auto"><h1>{title}</h1><p>{html.escape(startup.get("message", "Starting your session…"))}</p><a href="/projects/">Open projects</a></body></html>'
+                '<!doctype html><html><head>'
+                f'{refresh}<title>{title}</title>'
+                '<style>'
+                '.bar { height: 4px; border-radius: 2px; margin-bottom: 1.4rem;'
+                '       animation: pulse 1.6s ease-in-out infinite; }'
+                '@keyframes pulse { 0%, 100% { background: #e8e3da; }'
+                '                   50% { background: #8b1e3f; } }'
+                '</style></head>'
+                '<body style="font:16px sans-serif;max-width:700px;margin:10vh auto">'
+                '<div class="bar" aria-hidden="true"></div>'
+                f'<h1>{title}</h1>'
+                f'<p>{html.escape(startup.get("message", "Starting your session…"))}</p>'
+                '<a href="/projects/">Open projects</a></body></html>'
             )
         else:
             response = self.get_response(request)
+        ancestors = frame_ancestors()
+        if ancestors is not None:
+            # Django's clickjacking middleware sends "X-Frame-Options: DENY",
+            # which stops Galaxy from embedding the app in its interactive
+            # tool iframe (the Galaxy page and the proxied entry point are
+            # different origins). Replace it with a frame-ancestors policy
+            # this container controls.
+            del response["X-Frame-Options"]
+            response["Content-Security-Policy"] = f"frame-ancestors {ancestors}"
         if (
             stop_button_enabled()
             and response.get("Content-Type", "").startswith("text/html")

@@ -30,9 +30,8 @@
     h1 { font-size: 1.4rem; margin: 1.2rem 0 .4rem; }
     p  { line-height: 1.5; margin: .4rem 0; }
     .hint { color: #6b675f; font-size: .92rem; }
-    .bar { height: 4px; border-radius: 2px; background: #e8e3da; overflow: hidden; margin-bottom: 1.4rem; }
-    .bar span { display: block; height: 100%; width: 40%; background: #8b1e3f; border-radius: 2px; animation: slide 1.6s ease-in-out infinite; }
-    @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+    .bar { height: 4px; border-radius: 2px; margin-bottom: 1.4rem; animation: pulse 1.6s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { background: #e8e3da; } 50% { background: #8b1e3f; } }
   </style>
 </head>
 <body>
