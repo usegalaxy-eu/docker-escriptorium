@@ -1,5 +1,5 @@
 # Start from slim Python image
-FROM python:3.11-slim
+FROM python:3.11-slim@sha256:07d4824036af339fa1b6ef769cc99d9c10a141769538b52b3b597c84f7a7b535
 
 ENV DB_NAME=escriptorium \
     DB_USER=escriptorium \
@@ -63,9 +63,16 @@ COPY django-init.sh /django-init.sh
 COPY wait-for-db.sh /wait-for-db.sh
 COPY import-data.py /import-data.py
 COPY export-watcher.py /export-watcher.py
+COPY galaxy_runtime.py session_archive.py initialize.py run_stack.py /opt/galaxy/
+ENV PYTHONPATH=/opt/galaxy:/home/escriptorium/escriptorium/app \
+    CELERY_CONCURRENCY=2 \
+    UWSGI_PROCESSES=2
+ARG ESCRIPTORIUM_COMMIT=51b2ee62c307bd13eb0f6bad894f124eee7265cc
+RUN git -c safe.directory=/home/escriptorium/escriptorium -C /home/escriptorium/escriptorium rev-parse HEAD > /opt/galaxy/upstream-commit && \
+    test "$(cat /opt/galaxy/upstream-commit)" = "$ESCRIPTORIUM_COMMIT"
 
-# Expose Django and Flower ports
-EXPOSE 8000 5555
+# Galaxy-facing HTTP entry point; backing services stay internal.
+EXPOSE 80
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/
@@ -82,22 +89,20 @@ COPY nginx/startup.html /usr/share/nginx/html/startup.html
 # Optional auth bypass: install the auto-login middleware and hook it into
 # settings.py. It only activates when DISABLE_AUTH is truthy ("true"/"1"/"yes"),
 # in which case every request is logged in as the bootstrap superuser.
-COPY autologin.py /home/escriptorium/escriptorium/app/escriptorium/autologin.py
-COPY galaxy_integration.py /home/escriptorium/escriptorium/app/escriptorium/galaxy_integration.py
+COPY --chown=escriptorium:escriptorium autologin.py /home/escriptorium/escriptorium/app/escriptorium/autologin.py
+COPY --chown=escriptorium:escriptorium galaxy_integration.py /home/escriptorium/escriptorium/app/escriptorium/galaxy_integration.py
+COPY --chown=escriptorium:escriptorium assets/galaxy-logo.png /home/escriptorium/escriptorium/app/escriptorium/static/images/galaxy-logo.png
 COPY docker-settings-patch.py /tmp/docker-settings-patch.py
 RUN cat /tmp/docker-settings-patch.py >> /home/escriptorium/escriptorium/app/escriptorium/settings.py && \
-    rm /tmp/docker-settings-patch.py && \
-    chown escriptorium:escriptorium /home/escriptorium/escriptorium/ -R
+    rm /tmp/docker-settings-patch.py
 
-# Collect static files at build time so nginx can serve /static/ immediately
-# when the container starts (django-init re-runs collectstatic at runtime,
-# which only refreshes the same files). Run as the escriptorium user: the
+# Collect static files once at build time so nginx serves them immediately.
+# Run as the escriptorium user: the
 # Django setup also creates app/escriptorium/logs/error.log, which must be
 # writable by the runtime user (uwsgi) — as root it would break app startup.
 # collectstatic needs no database.
 RUN su escriptorium -p -c "cd /home/escriptorium/escriptorium/app && \
-    python manage.py collectstatic --noinput" && \
-    chown escriptorium:escriptorium /home/escriptorium/escriptorium/ -R
+    python manage.py collectstatic --noinput"
 
 # The home directory must be traversable for nginx (www-data) to serve
 # /static/ from app/static — newer Debian useradd defaults to HOME_MODE 0700,
@@ -107,8 +112,9 @@ RUN chmod 755 /home/escriptorium
 # Directories for Galaxy Interactive Tool integration (and standalone use):
 # IMPORT_DIR holds files auto-imported at startup, EXPORT_DIR receives
 # finished export archives (see import-data.py / export-watcher.py).
-RUN mkdir -p /data/import /data/export /data/models \
-    && chown escriptorium:escriptorium /data/import /data/export /data/models
+RUN mkdir -p /data/import /data/export /data/models /data/project /data/model-export \
+    && chown escriptorium:escriptorium /data/import /data/export /data/models /data/project /data/model-export
 
 # Default command
-CMD ["docker-entrypoint.sh"]
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD []

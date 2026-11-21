@@ -22,10 +22,11 @@ the site. Only run it on trusted/private networks.
 import os
 
 from django.contrib.auth import get_user_model, login
+from galaxy_runtime import bootstrap_user
 
 
 def auth_disabled():
-    return os.getenv('DISABLE_AUTH', 'True').lower() in ('true', '1', 'yes')
+    return os.getenv("DISABLE_AUTH", "True").lower() in ("true", "1", "yes")
 
 
 class AutoLoginMiddleware:
@@ -38,14 +39,16 @@ class AutoLoginMiddleware:
         # sessions and enforce CSRF on their POSTs, breaking token-based
         # API usage. Browser users get their session from the page loads;
         # unauthenticated API clients keep using token auth.
-        if request.path.startswith('/api/'):
+        if request.path.startswith("/api/"):
             return self.get_response(request)
 
         if request.user.is_anonymous:
             user_model = get_user_model()
             user = (
-                user_model.objects.filter(is_superuser=True, is_active=True)
-                .order_by('pk')
+                user_model.objects.filter(
+                    username=bootstrap_user(), is_superuser=True, is_active=True
+                )
+                .order_by("pk")
                 .first()
             )
             if user is not None:
@@ -53,6 +56,6 @@ class AutoLoginMiddleware:
                 login(
                     request,
                     user,
-                    backend='django.contrib.auth.backends.ModelBackend',
+                    backend="django.contrib.auth.backends.ModelBackend",
                 )
         return self.get_response(request)

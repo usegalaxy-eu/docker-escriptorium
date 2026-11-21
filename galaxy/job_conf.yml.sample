@@ -1,0 +1,24 @@
+# Merge this destination and tool mapping into the site's existing job_conf.yml.
+# Configure the Galaxy interactive-tools proxy separately for this destination.
+runners:
+  local:
+    load: galaxy.jobs.runners.local:LocalJobRunner
+    workers: 4
+execution:
+  default: local
+  environments:
+    local:
+      runner: local
+    interactive_escriptorium:
+      runner: local
+      docker_enabled: true
+      docker_set_user: "0"
+      docker_net: bridge
+      docker_volumes: "$defaults"
+      docker_auto_rm: true
+      container_monitor: true
+      # Example allocation; size for the site's training workload.
+      docker_run_extra_arguments: "--cpus=4 --memory=12g"
+tools:
+  - id: interactive_tool_escriptorium
+    environment: interactive_escriptorium

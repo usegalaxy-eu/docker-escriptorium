@@ -4,19 +4,24 @@ Shared fixture generator for the docker-escriptorium tests.
 
 Creates three importable files in the given directory:
 
-  01-page.png             a small generated PNG (becomes a document part)
+  01-page.png             upstream Hebrew print image (becomes a document part)
   02-transcriptions.xml   an ALTO XML bound to 01-page.png (2 lines with
                           transcriptions)
   03-export.zip           an eScriptorium-export-style archive containing
-                          page2.png + page2.xml (second part + 1 line)
+                          upstream handwriting image + XML (second part + 1 line)
+
+The images are unchanged upstream segmentation fixtures (see assets/README.md).
+The XML contains test markers, not ground-truth transcriptions of these images.
 
 Usage:  python3 fixtures.py <target-dir>
 """
+
 import os
+from pathlib import Path
+import shutil
 import struct
 import sys
 import zipfile
-import zlib
 
 ALTO_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <alto xmlns="http://www.loc.gov/standards/alto/ns-v4#"
@@ -28,9 +33,9 @@ ALTO_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     </sourceImageInformation>
   </Description>
   <Layout>
-    <Page WIDTH="200" HEIGHT="100" PHYSICAL_IMG_NR="0" ID="page_0">
-      <PrintSpace HPOS="0" VPOS="0" WIDTH="200" HEIGHT="100">
-        <TextBlock HPOS="10" VPOS="10" ID="textblock_0" WIDTH="180" HEIGHT="{block_height}">
+    <Page WIDTH="{width}" HEIGHT="{height}" PHYSICAL_IMG_NR="0" ID="page_0">
+      <PrintSpace HPOS="0" VPOS="0" WIDTH="{width}" HEIGHT="{height}">
+        <TextBlock HPOS="10" VPOS="10" ID="textblock_0" WIDTH="{line_width}" HEIGHT="{block_height}">
 {lines}
         </TextBlock>
       </PrintSpace>
@@ -39,58 +44,53 @@ ALTO_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 </alto>
 """
 
-LINE_TEMPLATE = """          <TextLine ID="line_{i}" HPOS="10" VPOS="{vpos}" WIDTH="180" HEIGHT="20">
-            <String ID="segment_{i}" CONTENT="{content}" HPOS="10" VPOS="{vpos}" WIDTH="180" HEIGHT="20" WC="0.99"></String>
+LINE_TEMPLATE = """          <TextLine ID="line_{i}" HPOS="10" VPOS="{vpos}" WIDTH="{line_width}" HEIGHT="{line_height}">
+            <String ID="segment_{i}" CONTENT="{content}" HPOS="10" VPOS="{vpos}" WIDTH="{line_width}" HEIGHT="{line_height}" WC="0.99"></String>
           </TextLine>"""
 
 
-def write_png(path, w, h, color):
-    raw = b"".join(b"\x00" + bytes(color) * w for _ in range(h))
-
-    def chunk(tag, data):
-        return (
-            struct.pack(">I", len(data))
-            + tag
-            + data
-            + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
-        )
-
-    png = (
-        b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
-        + chunk(b"IDAT", zlib.compress(raw))
-        + chunk(b"IEND", b"")
-    )
-    with open(path, "wb") as fh:
-        fh.write(png)
-
-
-def alto_xml(image_name, lines):
+def alto_xml(image_name, lines, image_path):
+    # Read the PNG dimensions without adding a host-side imaging dependency.
+    width, height = struct.unpack(">II", Path(image_path).read_bytes()[16:24])
+    line_width, line_height, spacing = width - 20, height // 5, height // 3
     body = "\n".join(
-        LINE_TEMPLATE.format(i=i, vpos=10 + i * 30, content=content)
+        LINE_TEMPLATE.format(
+            i=i,
+            vpos=10 + i * spacing,
+            content=content,
+            line_width=line_width,
+            line_height=line_height,
+        )
         for i, content in enumerate(lines)
     )
     return ALTO_TEMPLATE.format(
-        image=image_name, block_height=len(lines) * 30, lines=body
+        image=image_name,
+        width=width,
+        height=height,
+        line_width=line_width,
+        block_height=(len(lines) - 1) * spacing + line_height,
+        lines=body,
     )
 
 
 def generate(target):
     os.makedirs(target, exist_ok=True)
 
-    write_png(os.path.join(target, "01-page.png"), 200, 100, (255, 255, 255))
+    assets = Path(__file__).parent / "assets"
+    shutil.copyfile(assets / "default.png", os.path.join(target, "01-page.png"))
     with open(os.path.join(target, "02-transcriptions.xml"), "w") as fh:
-        fh.write(alto_xml("01-page.png", ["Hello world", "second line"]))
+        fh.write(
+            alto_xml(
+                "01-page.png", ["Hello world", "second line"], assets / "default.png"
+            )
+        )
 
     # second page, packaged as an eScriptorium-export-style zip
-    write_png(os.path.join(target, "page2.png"), 200, 100, (240, 240, 255))
-    with open(os.path.join(target, "page2.xml"), "w") as fh:
-        fh.write(alto_xml("page2.png", ["zipped"]))
     with zipfile.ZipFile(os.path.join(target, "03-export.zip"), "w") as zf:
-        zf.write(os.path.join(target, "page2.png"), "page2.png")
-        zf.write(os.path.join(target, "page2.xml"), "page2.xml")
-    os.remove(os.path.join(target, "page2.png"))
-    os.remove(os.path.join(target, "page2.xml"))
+        zf.write(assets / "default2.png", "page2.png")
+        zf.writestr(
+            "page2.xml", alto_xml("page2.png", ["zipped"], assets / "default2.png")
+        )
 
     return ["01-page.png", "02-transcriptions.xml", "03-export.zip"]
 

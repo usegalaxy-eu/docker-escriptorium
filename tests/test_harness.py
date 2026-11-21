@@ -114,6 +114,19 @@ class StackTests(unittest.TestCase):
         docker.assert_called_once_with("rm", "-f", self.stack.name, check=False)
         self.assertFalse(self.stack.workdir.exists())
 
+    def test_cleanup_recovers_interrupted_root_owned_checkpoint(self):
+        with (
+            patch(
+                "integration.shutil.rmtree",
+                side_effect=[PermissionError("checkpoint in progress"), None],
+            ),
+            patch("integration.docker") as docker,
+        ):
+            self.stack.__exit__(None, None, None)
+        self.assertEqual(docker.call_count, 1)
+        self.assertIn("--entrypoint", docker.call_args.args)
+        self.assertIn(f"{self.stack.workdir}:/cleanup", docker.call_args.args)
+
     def test_pagination_includes_later_pages(self):
         self.stack.api = Mock(
             side_effect=[
@@ -130,10 +143,14 @@ class StackTests(unittest.TestCase):
     def test_failed_import_stops_without_waiting_for_timeout(self):
         self.stack.authenticate = Mock()
         responses = [
-            subprocess.CompletedProcess([], 0, stdout="import-data EXITED", stderr=""),
             subprocess.CompletedProcess(
-                [], 0, stdout="Done. 2 file(s) imported, 1 failure(s).", stderr=""
-            ),
+                [],
+                0,
+                stdout=json.dumps(
+                    {"phase": "failed", "message": "Startup importer failed"}
+                ),
+                stderr="",
+            )
         ]
         with (
             patch("integration.docker", side_effect=responses),

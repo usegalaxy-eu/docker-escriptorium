@@ -2,29 +2,42 @@ name: PR
 
 on:
   pull_request:
-    branches: [ "main", "master" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: ["main", "master"]
   workflow_dispatch:
 
 jobs:
-  initialise:
+  integration:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 45
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-          
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-   
-  build_only:
-    needs: initialise
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Build docker image
+      - uses: docker/setup-buildx-action@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - name: Install test dependencies
+        run: |
+          python -m pip install -r tests/requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Build the image under test
         uses: docker/build-push-action@v6
         with:
+          context: .
+          load: true
           push: false
-          tags: user/app:latest
+          tags: quay.io/galaxy/escriptorium:26.10
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Test imports, exports, shutdown and session restoration
+        env:
+          TEST_ARTIFACTS_DIR: ${{ runner.temp }}/escriptorium-results
+        run: python tests/integration.py quay.io/galaxy/escriptorium:26.10
+      - name: Upload test reports and failure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: escriptorium-results
+          path: ${{ runner.temp }}/escriptorium-results
+          if-no-files-found: ignore

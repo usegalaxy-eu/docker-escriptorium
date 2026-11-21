@@ -10,11 +10,10 @@ _auth_mw = 'django.contrib.auth.middleware.AuthenticationMiddleware'
 # Galaxy "stop session" button / endpoints. Inserted before the auto-login
 # middleware so that the auto-login runs first on the request path and the
 # stop endpoint sees the logged-in user.
-if galaxy_integration.stop_button_enabled():
-    MIDDLEWARE.insert(
-        MIDDLEWARE.index(_auth_mw) + 1,
-        'escriptorium.galaxy_integration.GalaxyIntegrationMiddleware',
-    )
+MIDDLEWARE.insert(
+    MIDDLEWARE.index(_auth_mw) + 1,
+    'escriptorium.galaxy_integration.GalaxyIntegrationMiddleware',
+)
 
 if autologin.auth_disabled():
     MIDDLEWARE.insert(

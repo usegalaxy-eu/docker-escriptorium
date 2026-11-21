@@ -28,18 +28,17 @@ push:
     @echo "Pushed {{image_tag}}"
 
 # run: run the full stack locally with test data (usage: just run [extra docker args...])
-run *args:
+@run *args:
     # Generate test fixtures (image + ALTO XML + zip) into ./data/import —
     # import-data.py loads them automatically at container startup.
-    python3 tests/fixtures.py data/import
-    -docker rm -f escriptorium >/dev/null 2>&1
+    python3 tests/fixtures.py data/import >/dev/null
+    docker rm -f escriptorium >/dev/null 2>&1 || true
     docker run --rm -d --name escriptorium -p {{port}}:80 \
         -v "$(pwd)/data/import:/data/import" \
         -v "$(pwd)/data/export:/data/export" \
         -v "$(pwd)/data/models:/data/models" \
-        {{args}} {{image_tag}}
-    @echo "Running: docker run --rm -d --name escriptorium -p {{port}}:80 -v $(pwd)/data/import:/data/import -v $(pwd)/data/export:/data/export -v $(pwd)/data/models:/data/models {{args}} {{image_tag}}"
-    @echo "http://localhost:{{port}} (login: admin/admin) — test data is imported into 'Imported documents' → 'Imported document' — exports land in ./data/export — logs: just logs, stop: just stop"
+        {{args}} {{image_tag}} >/dev/null
+    printf '\neScriptorium is starting. Open:\n\n  http://localhost:{{port}}\n\nLogs: just logs    Stop: just stop\n'
 
 # stop: stop the container started by `just run`
 stop:

@@ -1,12 +1,7 @@
 #!/bin/bash
-
-# Started without arguments (plain `docker run`, CMD): launch the full stack.
-# Started with a command (Galaxy Interactive Tools run their <command> block
-# as the container command): execute that instead — the tool command does its
-# setup (output directories, input symlinks, env vars) and then starts
-# supervisord itself in the foreground.
+set -euo pipefail
+python3 -c 'from galaxy_runtime import prepare_runtime; prepare_runtime()'
 if [ "$#" -eq 0 ]; then
-    exec /usr/bin/supervisord -n
-else
-    exec "$@"
+    exec python3 /opt/galaxy/run_stack.py
 fi
+exec "$@"
