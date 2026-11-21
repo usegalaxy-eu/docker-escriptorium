@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Reload the original URL every 3 seconds until the app is up. -->
+  <meta http-equiv="refresh" content="3">
+  <title>eScriptorium — starting up…</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f4f1ec;
+      color: #2c2a26;
+    }
+    .card {
+      max-width: 34rem;
+      margin: 2rem;
+      padding: 2.5rem 3rem;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.12);
+      text-align: center;
+    }
+    h1 { font-size: 1.4rem; margin: 1.2rem 0 .4rem; }
+    p  { line-height: 1.5; margin: .4rem 0; }
+    .hint { color: #6b675f; font-size: .92rem; }
+    .bar { height: 4px; border-radius: 2px; background: #e8e3da; overflow: hidden; margin-bottom: 1.4rem; }
+    .bar span { display: block; height: 100%; width: 40%; background: #8b1e3f; border-radius: 2px; animation: slide 1.6s ease-in-out infinite; }
+    @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="bar" aria-hidden="true"></div>
+    <h1>eScriptorium is starting up…</h1>
+    <p>The application is initializing its database. This usually takes
+       <strong>less than a minute</strong>.</p>
+    <p class="hint">This page reloads automatically every 3 seconds — no need
+       to do anything.</p>
+  </main>
+</body>
+</html>

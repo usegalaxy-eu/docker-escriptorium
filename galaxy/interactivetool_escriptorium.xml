@@ -1,0 +1,124 @@
+<tool id="interactive_tool_escriptorium" tool_type="interactive" name="eScriptorium" version="26.10+galaxy0" profile="22.01">
+    <description>Segmentation and transcription of manuscripts</description>
+    <requirements>
+        <container type="docker">docker-escriptorium:latest</container>
+    </requirements>
+    <entry_points>
+        <entry_point name="eScriptorium" requires_domain="True">
+            <port>80</port>
+        </entry_point>
+    </entry_points>
+    <environment_variables>
+        <!-- Both of these are already the image defaults; they are set
+             explicitly so the tool also works with a vanilla eScriptorium
+             image that lacks the docker-escriptorium defaults. -->
+        <!-- Auto-login as the bootstrap superuser so the user lands directly
+             in the app. The export watcher uses the same account, so every
+             export the user triggers is visible to it. -->
+        <environment_variable name="DISABLE_AUTH">True</environment_variable>
+        <!-- Add the floating "Stop session and export to Galaxy" button: flushes
+             pending exports and shuts the container down so Galaxy can
+             harvest the results. -->
+        <environment_variable name="GALAXY_STOP_BUTTON">True</environment_variable>
+        <!-- Do not import the same files again if the container restarts. -->
+        <environment_variable name="IMPORT_DOCUMENT_NAME">Galaxy import</environment_variable>
+        <!-- When Galaxy proxies the iframe, POSTs need the Galaxy origin
+             listed here (replace with your Galaxy URL). -->
+        <environment_variable name="CSRF_TRUSTED_ORIGINS">https://galaxy.example.org</environment_variable>
+        <environment_variable name="USE_X_FORWARDED_HOST">True</environment_variable>
+    </environment_variables>
+    <command detect_errors="exit_code"><![CDATA[
+        ## Galaxy runs this command inside the container with `pwd` set to the
+        ## job working directory — every interactive tool gets its own. The
+        ## import/export folders live inside it and are handed to the app
+        ## through IMPORT_DIR / EXPORT_DIR, which import-data.py and the
+        ## export-watcher read at startup.
+        mkdir -p ./exports ./imports ./models &&
+        chown -R escriptorium ./exports ./imports ./models || true &&
+
+        ## Galaxy input datasets -> ./imports (symlinked; auto-imported at
+        ## startup by import-data.py into the "Galaxy import" document)
+        #for $file in $input:
+            ln -sf '$file' "./imports/${file.element_identifier}.${file.ext}" &&
+        #end for
+
+        ## Kraken models -> ./models (symlinked; uploaded as OCR models at
+        ## startup — segmentation vs recognition is detected automatically)
+        #for $model in $kraken_models:
+            ln -sf '$model' "./models/${model.element_identifier}.${model.ext}" &&
+        #end for
+
+        ## Point the app at the dynamically located folders. Everything the
+        ## watcher saves into ./exports is harvested into the history when
+        ## the user ends the session (<discover_datasets> below).
+        export IMPORT_DIR="\$PWD/imports" &&
+        export EXPORT_DIR="\$PWD/exports" &&
+        export MODEL_DIR="\$PWD/models" &&
+
+        ## Launch the full stack (postgres, redis, django, celery, nginx)
+        ## in the foreground; Galaxy proxies the entry point to port 80.
+        exec /usr/bin/supervisord -n
+    ]]></command>
+    <inputs>
+        <param name="input" type="data" multiple="true" optional="true"
+               format="jpg,png,tiff,pdf,xml,zip"
+               label="Images / PDF / XML or zip to import"
+               help="Datasets are imported into a new document at startup. Leave empty to start from scratch."/>
+        <param name="kraken_models" type="data" multiple="true" optional="true"
+               format="mlmodel,safetensors"
+               label="Kraken models (segmentation / recognition)"
+               help="Models are uploaded to eScriptorium at startup and are immediately available in the document's process panel. Segmentation and recognition models are detected automatically."/>
+    </inputs>
+    <outputs>
+        <collection name="exports" type="list" label="eScriptorium exports">
+            <discover_datasets pattern="__name_and_ext__" directory="exports" />
+        </collection>
+    </outputs>
+    <help><![CDATA[
+**eScriptorium** (interactive tool)
+
+Launches a full eScriptorium instance. Input datasets are imported into a
+document ("Galaxy import") at startup; use the *Images* tab of the document
+to work with them (segmentation, transcription, model training).
+
+**User story — getting results back into Galaxy:**
+
+1. **Start the tool.** The entry point opens directly in your document: the
+   Galaxy datasets are already imported into the *Galaxy import* document
+   (while the import is running you see a "Preparing your document…" page
+   that reloads automatically). Any Kraken models you passed in are uploaded
+   and ready to use.
+2. **Work.** Segment, transcribe and train as usual — everything is saved in
+   the running session.
+3. **(Optional) Export individual results while working.** Use the *Export*
+   button on the document dashboard (format, transcription and options of
+   your choice). Every finished export is picked up automatically and saved
+   into the tool's output folder — you can watch it appear on the
+   *Downloads* page.
+4. **Close the app.** Click the red **Stop session and export to Galaxy** button in
+   the bottom right corner. This:
+   - triggers a **full export of every document** in the session (all
+     transcriptions + the images — a re-importable backup, e.g. into a later
+     eScriptorium session),
+   - waits for running tasks to finish,
+   - saves all export archives into the Galaxy output folder and shuts the
+     interactive session down.
+5. **Collect the results.** When the session ends, Galaxy harvests the
+   output folder into your history as a dataset collection — your per-result
+   exports plus the automatic full-document backup.
+
+**Notes:**
+- Kraken models passed as inputs land in the *Models* section of the
+  document's process panel; segmentation and recognition models are told
+  apart automatically.
+- The full backup is exported in ALTO format by default (configurable by the
+  administrator via `STOP_EXPORT_FORMAT`: `alto`, `pagexml` or `json`; set
+  `STOP_EXPORT=no` to disable it).
+- Exports are asynchronous — after clicking *Export*, wait until the archive
+  appears on the *Downloads* page (or just use the stop button, which waits
+  for it).
+]]></help>
+    <citations>
+        <citation type="doi">10.5281/zenodo.6642881</citation>
+    </citations>
+</tool>
